@@ -27,7 +27,7 @@ The frontend build rejects an empty or non-HTTPS API origin. Local Django previe
 
 Render's free filesystem is temporary, so production uploads use the `PrivateDocument` table in Supabase. ID files have no public URL and are served only by authenticated Django endpoints. The database storage migration is included in the code.
 
-Four ID paths in the current GoRent database point to files on the local machine. They have **not** been copied to Supabase. Copying them requires explicit approval because they contain sensitive identity documents. Once approved, run `python manage.py migrate_private_documents --execute` on the local machine with its existing `.env`; first run without `--execute` to verify the count. Until then, an affected renter can upload a new ID for a pending request.
+The four existing GoRent ID files were copied into its private Supabase database table with the user's explicit approval and verified byte for byte. The local copies remain in `private_media/` and are not committed to Git. If more documents are uploaded through the local preview before production deployment, run `python manage.py migrate_private_documents` to check the pending count, then run it with `--execute` after confirming those documents may be transferred.
 
 Production listing is intentionally closed without an authorized ID verification provider. The previous local `demo_checked` status does not count as verified in production, and its cars are not shown to renters. Connecting a legitimate verification provider is required to unlock new public listings. Do not set `DEBUG=1` on Render to bypass this gate.
 
