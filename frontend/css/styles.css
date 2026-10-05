@@ -76,7 +76,7 @@ h1,h2,h3,p{margin:0}h1,h2,h3{letter-spacing:-.03em;line-height:1.05}
 @media(max-width:780px){.hero,.dt{grid-template-columns:1fr}.sb{grid-template-columns:1fr 1fr}.sb .f:first-child,.sb .btn{grid-column:1/-1}.add{grid-template-columns:1fr 1fr}.panel{position:static}.rt2{justify-items:start}}
 
 /* Landing video stays fixed while the page and results scroll above it. */
-.landing-backdrop{display:none;position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#07090e}
+.landing-backdrop{display:none;position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#07090e url('../media/hero-poster.jpg') center/cover no-repeat}
 .landing-page .landing-backdrop{display:block}
 .landing-backdrop video{width:100%;height:100%;object-fit:cover;object-position:center center}
 .landing-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,5,13,.60),rgba(2,5,13,.55) 42%,rgba(2,5,13,.78)),linear-gradient(90deg,rgba(2,5,13,.4),transparent 50%,rgba(2,5,13,.4))}
@@ -206,6 +206,31 @@ body.landing-page{--bg:#090d16;--ink:#fff;--mut:#d5d9e4;--card:rgba(12,18,30,.84
 @media(max-width:1100px){.dashboard-page .owner-dashboard{grid-template-columns:220px minmax(0,1fr);gap:20px}.dashboard-page .dashboard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-page .owner-dashboard .owner-car-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}}
 @media(max-width:700px){.dashboard-page .owner-dashboard{display:block}.dashboard-page .dashboard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-page .dashboard-quick-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.dashboard-page .dashboard-metrics{grid-template-columns:1fr}.dashboard-page .dashboard-form-footer{align-items:stretch;flex-direction:column}.dashboard-page .dashboard-form-footer p{margin-right:0}.dashboard-page .dashboard-form-footer .btn{width:100%}}
+
+/* Keep forms readable and video decoding light on narrow phones. */
+@media(max-width:600px){
+  .w{padding-left:16px;padding-right:16px}
+  .top .w{min-height:60px;padding-top:8px;padding-bottom:8px}
+  .top #account .btn.s,.menu-toggle{min-height:44px}
+  .menu-toggle{width:44px;height:44px}
+  .landing-page .top{backdrop-filter:none;background:rgba(5,9,17,.88)}
+  .landing-page .hero{min-height:calc(100svh - 60px);padding:38px 0 30px}
+  .landing-page .hero h1{font-size:clamp(29px,8vw,39px);min-height:3em;line-height:1.08;margin-top:14px}
+  .hero-eyebrow{font-size:10px;letter-spacing:.18em}
+  .landing-page .sb{grid-template-columns:minmax(0,1fr);width:100%;padding:6px;margin-top:20px}
+  .landing-page .sb .f,.landing-page .sb .search-field,.landing-page .sb .btn{grid-column:1/-1;min-width:0}
+  .landing-page .sb .f{padding:9px 12px}
+  .landing-page .sb .f+.f,.landing-page .sb .f:nth-child(3){border-left:0;border-top:1px solid #dce0e7}
+  .landing-page .sb input{min-width:0;font-size:16px}
+  .landing-page .sb .btn{min-height:48px}
+  .hero-note{font-size:12px;line-height:1.55}
+  .landing-page .cc{backdrop-filter:none}
+  .landing-page .flt>*{min-width:0;flex:1 1 100%}
+  .grid,.owner-dashboard .owner-car-grid,.dashboard-page .owner-dashboard .owner-car-grid{grid-template-columns:minmax(0,1fr)}
+  .booking-row .gr{min-width:0;overflow-wrap:anywhere}
+  .booking-row .rt{align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){.landing-backdrop video{display:none}.headline-in,.headline-out{transition:none}}
 
 .cash-status{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;margin:12px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);font-size:13px}
 .cash-status b{color:var(--ink)}.cash-status span{color:var(--mut)}
