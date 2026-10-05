@@ -14,8 +14,13 @@ DEBUG = os.getenv("DEBUG", "1") == "1"
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-me" if DEBUG else "")
 if not SECRET_KEY:
     raise RuntimeError("Set SECRET_KEY before running with DEBUG=0.")
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
+if os.getenv("RENDER_EXTERNAL_HOSTNAME"):
+    ALLOWED_HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
+CORS_ALLOWED_ORIGINS = [origin.strip().rstrip("/") for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
@@ -23,12 +28,12 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = "same-origin"
-INSTALLED_APPS = ["django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
+INSTALLED_APPS = ["corsheaders", "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
     "rest_framework", "rest_framework.authtoken", "cloudinary", "core"]
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "").strip()
 OWNER_ID_LOCAL_DEMO = DEBUG and os.getenv("OWNER_ID_MODE", "") == "local_demo"
-MIDDLEWARE = ["django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware",
+MIDDLEWARE = ["django.middleware.security.SecurityMiddleware", "corsheaders.middleware.CorsMiddleware", "whitenoise.middleware.WhiteNoiseMiddleware", "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware", "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware", "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware"]
@@ -50,6 +55,11 @@ AUTH_USER_MODEL = "core.User"
 AUTH_PASSWORD_VALIDATORS = [{"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"}]
 LANGUAGE_CODE, TIME_ZONE, USE_TZ = "en-in", "Asia/Kolkata", True
 STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "core.private_storage.DatabasePrivateStorage" if not DEBUG else "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_ROOT = BASE_DIR / "private_media"   # ID documents live here and have NO public URL
 FRONTEND_DIR = BASE_DIR / "frontend"

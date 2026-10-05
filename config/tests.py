@@ -1,5 +1,6 @@
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
+from django.test import override_settings
 
 from .database import database_from_url
 
@@ -25,3 +26,20 @@ class DatabaseUrlTests(SimpleTestCase):
             database_from_url("not-a-postgres-url", "gorentref")
         with self.assertRaises(ImproperlyConfigured):
             database_from_url("postgresql://postgres:secret@other.example.com:5432/postgres", "gorentref")
+
+
+class DeploymentCorsTests(SimpleTestCase):
+    @override_settings(CORS_ALLOWED_ORIGINS=["https://gorent.vercel.app"])
+    def test_only_configured_frontend_origin_receives_api_cors_headers(self):
+        accepted = self.client.options(
+            "/api/health/",
+            HTTP_ORIGIN="https://gorent.vercel.app",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="GET",
+        )
+        rejected = self.client.options(
+            "/api/health/",
+            HTTP_ORIGIN="https://unrelated.example",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="GET",
+        )
+        self.assertEqual(accepted["Access-Control-Allow-Origin"], "https://gorent.vercel.app")
+        self.assertNotIn("Access-Control-Allow-Origin", rejected)

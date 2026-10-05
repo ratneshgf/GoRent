@@ -70,6 +70,8 @@ class VehicleViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(owner=u)
             else:
                 qs = qs.filter(status="published", owner__status="active")
+                if not settings.OWNER_ID_LOCAL_DEMO:
+                    qs = qs.filter(owner__identity_status="verified")
             if p.get("q"):
                 term = p["q"].strip()
                 qs = qs.filter(Q(brand__icontains=term) | Q(name__icontains=term) | Q(city__icontains=term))
@@ -167,6 +169,8 @@ class BookingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         if booking.status in ("rejected", "cancelled"):
             raise PermissionDenied("This ID is no longer available after the request closed.")
         if not booking.id_document: raise ValidationError("The renter has not shared an ID yet.")
+        if not booking.id_document.storage.exists(booking.id_document.name):
+            raise ValidationError("This ID file is unavailable. Ask the renter to upload it again.")
         booking.id_viewed_by_owner_at = timezone.now()
         booking.save(update_fields=["id_viewed_by_owner_at"])
         rules.audit(request.user, "renter_id_viewed", "booking", booking.pk)

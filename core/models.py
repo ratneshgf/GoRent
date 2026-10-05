@@ -1,6 +1,13 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+class PrivateDocument(models.Model):
+    """ID bytes kept in the configured database, never exposed by a file URL."""
+    path = models.CharField(max_length=500, unique=True)
+    content = models.BinaryField()
+    size = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
 class User(AbstractUser):
     ROLES = [("customer", "Customer"), ("owner", "Owner"), ("admin", "Admin")]
     role = models.CharField(max_length=10, choices=ROLES, default="customer")

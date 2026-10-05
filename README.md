@@ -1,5 +1,7 @@
 # GoRent direct car rentals
 
+For a split Render backend and Vercel frontend deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 Django and Django REST Framework app with owner and renter accounts. Owners complete a local ID file check before listing cars; renters upload an ID with each rental request; owners review that private ID and accept or reject requests. Acceptance requires a pickup address, and the renter receives a Google Maps driving route.
 
 ## Local preview

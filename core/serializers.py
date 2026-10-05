@@ -195,7 +195,7 @@ class BookingCreateSer(serializers.Serializer):
         if a["id_type"] == "aadhaar" and not a["masked_aadhaar"]:
             raise serializers.ValidationError("Upload only masked Aadhaar with the first eight digits hidden.")
         v = a["vehicle"]
-        if v.status != "published" or v.owner.status != "active":
+        if v.status != "published" or v.owner.status != "active" or (not settings.OWNER_ID_LOCAL_DEMO and v.owner.identity_status != "verified"):
             raise serializers.ValidationError("This car is not available for booking.")
         if a["booking_type"] == "hourly":
             if not a.get("start_at") or not a.get("end_at"):
