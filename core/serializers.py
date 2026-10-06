@@ -34,12 +34,14 @@ def validate_identity_file(file):
 class UserSer(serializers.ModelSerializer):
     identity_can_list = serializers.SerializerMethodField()
     identity_local_demo = serializers.SerializerMethodField()
+    renter_id_saved = serializers.SerializerMethodField()
+    def get_renter_id_saved(self, user): return user.role == "customer" and bool(user.renter_id_document)
     def get_identity_can_list(self, user):
         return user.identity_status in ("verified", "submitted") or (settings.OWNER_ID_LOCAL_DEMO and user.identity_status == "demo_checked")
     def get_identity_local_demo(self, user): return settings.OWNER_ID_LOCAL_DEMO
     class Meta:
-        model = User; fields = ["id", "email", "first_name", "role", "phone", "status", "company_name", "identity_type", "identity_status", "identity_can_list", "identity_local_demo"]
-        read_only_fields = ["email", "role", "status", "identity_type", "identity_status", "identity_can_list", "identity_local_demo"]
+        model = User; fields = ["id", "email", "first_name", "role", "phone", "status", "company_name", "identity_type", "identity_status", "identity_can_list", "identity_local_demo", "renter_id_saved", "renter_id_type"]
+        read_only_fields = ["email", "role", "status", "identity_type", "identity_status", "identity_can_list", "identity_local_demo", "renter_id_saved", "renter_id_type"]
 
 class OwnerIdentitySer(serializers.Serializer):
     document_type = serializers.ChoiceField(choices=IDENTITY_TYPES)
@@ -184,15 +186,24 @@ class BookingCreateSer(serializers.Serializer):
     booking_type = serializers.ChoiceField(choices=["daily", "hourly"], default="daily")
     start = serializers.DateField(required=False); end = serializers.DateField(required=False)
     start_at = serializers.DateTimeField(required=False); end_at = serializers.DateTimeField(required=False)
-    id_document = serializers.FileField(validators=[validate_identity_file])
-    id_type = serializers.ChoiceField(choices=IDENTITY_TYPES)
+    id_document = serializers.FileField(validators=[validate_identity_file], required=False)
+    id_type = serializers.ChoiceField(choices=IDENTITY_TYPES, required=False)
+    use_saved_id = serializers.BooleanField(required=False, default=False)
     consent = serializers.BooleanField()
     masked_aadhaar = serializers.BooleanField(required=False, default=False)
     def validate_consent(self, value):
         if not value: raise serializers.ValidationError("Agree to share your ID privately with the car owner.")
         return value
     def validate(self, a):
-        if a["id_type"] == "aadhaar" and not a["masked_aadhaar"]:
+        user = self.context["request"].user
+        if a.get("id_document"):
+            if not a.get("id_type"):
+                raise serializers.ValidationError("Choose the uploaded ID type.")
+        elif not (a.get("use_saved_id") and user.renter_id_document and user.renter_id_document.storage.exists(user.renter_id_document.name)):
+            raise serializers.ValidationError("Upload an ID or use your saved ID.")
+        else:
+            a["id_type"] = user.renter_id_type
+        if a["id_type"] == "aadhaar" and a.get("id_document") and not a["masked_aadhaar"]:
             raise serializers.ValidationError("Upload only masked Aadhaar with the first eight digits hidden.")
         v = a["vehicle"]
         allowed_statuses = ("verified", "submitted", "demo_checked") if settings.OWNER_ID_LOCAL_DEMO else ("verified", "submitted")
@@ -222,12 +233,19 @@ class BookingCreateSer(serializers.Serializer):
         return a
 
 class BookingIdentitySer(serializers.Serializer):
-    id_document = serializers.FileField(validators=[validate_identity_file])
-    id_type = serializers.ChoiceField(choices=IDENTITY_TYPES)
+    id_document = serializers.FileField(validators=[validate_identity_file], required=False)
+    id_type = serializers.ChoiceField(choices=IDENTITY_TYPES, required=False)
+    use_saved_id = serializers.BooleanField(required=False, default=False)
     consent = serializers.BooleanField()
     masked_aadhaar = serializers.BooleanField(required=False, default=False)
     def validate(self, attrs):
-        if attrs["id_type"] == "aadhaar" and not attrs["masked_aadhaar"]:
+        if attrs.get("id_document"):
+            if not attrs.get("id_type"): raise serializers.ValidationError("Choose the uploaded ID type.")
+        elif attrs.get("use_saved_id") and self.context["request"].user.renter_id_document and self.context["request"].user.renter_id_document.storage.exists(self.context["request"].user.renter_id_document.name):
+            attrs["id_type"] = self.context["request"].user.renter_id_type
+        else:
+            raise serializers.ValidationError("Upload an ID or use your saved ID.")
+        if attrs["id_type"] == "aadhaar" and attrs.get("id_document") and not attrs["masked_aadhaar"]:
             raise serializers.ValidationError("Upload only masked Aadhaar with the first eight digits hidden.")
         return attrs
     def validate_consent(self, value):

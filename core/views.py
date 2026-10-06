@@ -3,6 +3,8 @@ from django.db.models import Avg, Q
 from django.conf import settings
 from django.utils import timezone
 from django.http import FileResponse
+from django.core.files.base import ContentFile
+from pathlib import Path
 from rest_framework import generics, mixins, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -54,6 +56,30 @@ class OwnerIdentityView(APIView):
         if old_document and old_document.name != request.user.kyc_document.name:
             old_document.delete(save=False)
         rules.audit(request.user, "identity_document_submitted", "user", request.user.pk)
+        return Response(UserSer(request.user).data)
+
+
+def save_renter_account_id(user, document, id_type):
+    old_document = user.renter_id_document
+    document.seek(0)
+    user.renter_id_document.save("id" + Path(document.name).suffix.lower(), ContentFile(document.read()), save=False)
+    user.renter_id_type = id_type
+    user.renter_id_submitted_at = timezone.now()
+    user.save(update_fields=["renter_id_document", "renter_id_type", "renter_id_submitted_at"])
+    if old_document and old_document.name != user.renter_id_document.name:
+        transaction.on_commit(lambda: old_document.delete(save=False))
+
+
+class RenterIdentityView(APIView):
+    def post(self, request):
+        if request.user.role != "customer": raise PermissionDenied("Only renters can save an ID.")
+        serializer = BookingIdentitySer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data.get("id_document"):
+            raise ValidationError("Upload an ID to save it to your account.")
+        with transaction.atomic():
+            save_renter_account_id(request.user, serializer.validated_data["id_document"], serializer.validated_data["id_type"])
+            rules.audit(request.user, "renter_id_saved", "user", request.user.pk)
         return Response(UserSer(request.user).data)
 
 class VehicleViewSet(viewsets.ModelViewSet):
@@ -139,12 +165,19 @@ class BookingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         return qs.filter(Q(customer=u) | Q(vehicle__owner=u))
     def create(self, request):
         if request.user.role != "customer": raise PermissionDenied("Only renters can book.")
-        s = BookingCreateSer(data=request.data); s.is_valid(raise_exception=True); d = s.validated_data
+        s = BookingCreateSer(data=request.data, context={"request": request}); s.is_valid(raise_exception=True); d = s.validated_data
         v = d["vehicle"]
-        b = Booking.objects.create(vehicle=v, customer=request.user, start=d["start"], end=d["end"],
-                                   booking_type=d["booking_type"], start_at=d.get("start_at"), end_at=d.get("end_at"), amount=d["amount"],
-                                   id_document=d["id_document"], id_type=d["id_type"])
-        b.events.create(actor=request.user, to_status=b.status); rules.audit(request.user, "booking_requested", "booking", b.pk)
+        with transaction.atomic():
+            b = Booking.objects.create(vehicle=v, customer=request.user, start=d["start"], end=d["end"],
+                                       booking_type=d["booking_type"], start_at=d.get("start_at"), end_at=d.get("end_at"), amount=d["amount"],
+                                       id_document=d.get("id_document"), id_type=d["id_type"])
+            if d.get("id_document"):
+                save_renter_account_id(request.user, d["id_document"], d["id_type"])
+            else:
+                saved = request.user.renter_id_document
+                with saved.open("rb") as source:
+                    b.id_document.save("id" + Path(saved.name).suffix.lower(), ContentFile(source.read()), save=True)
+            b.events.create(actor=request.user, to_status=b.status); rules.audit(request.user, "booking_requested", "booking", b.pk)
         return Response(BookingSer(b).data, status=201)
     @action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
@@ -180,15 +213,23 @@ class BookingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         booking = self.get_object()
         if booking.customer != request.user: raise PermissionDenied("Only the renter can upload their ID.")
         if booking.status != "requested": raise ValidationError("ID can only be updated before the owner accepts.")
-        serializer = BookingIdentitySer(data=request.data)
+        serializer = BookingIdentitySer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         old_document = booking.id_document
-        booking.id_document = serializer.validated_data["id_document"]
+        document = serializer.validated_data.get("id_document")
+        if document:
+            booking.id_document = document
+        else:
+            saved = request.user.renter_id_document
+            with saved.open("rb") as source:
+                booking.id_document.save("id" + Path(saved.name).suffix.lower(), ContentFile(source.read()), save=False)
         booking.id_type = serializer.validated_data["id_type"]
         booking.id_viewed_by_owner_at = None
         booking.save(update_fields=["id_document", "id_type", "id_viewed_by_owner_at"])
         if old_document and old_document.name != booking.id_document.name:
             old_document.delete(save=False)
+        if document:
+            save_renter_account_id(request.user, document, serializer.validated_data["id_type"])
         rules.audit(request.user, "renter_id_submitted", "booking", booking.pk)
         return Response(BookingSer(booking).data)
     @action(detail=True, methods=["get", "post"])

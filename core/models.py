@@ -19,6 +19,9 @@ class User(AbstractUser):
     identity_type = models.CharField(max_length=20, blank=True)
     identity_status = models.CharField(max_length=20, default="not_submitted")
     identity_submitted_at = models.DateTimeField(null=True, blank=True)
+    renter_id_document = models.FileField(upload_to="renter_ids/%Y/%m", blank=True)
+    renter_id_type = models.CharField(max_length=20, blank=True)
+    renter_id_submitted_at = models.DateTimeField(null=True, blank=True)
     @property
     def verified(self): return self.kyc == "verified"
 
