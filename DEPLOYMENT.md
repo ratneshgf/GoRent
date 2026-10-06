@@ -23,12 +23,12 @@ The backend is Django on Render. The frontend is a static Vercel project built f
 
 The frontend build rejects an empty or non-HTTPS API origin. Local Django preview still uses same-origin `/api/` calls through `frontend/config.js`.
 
-## 3. Private ID documents and verification gate
+## 3. Private ID documents and owner upload
 
 Render's free filesystem is temporary, so production uploads use the `PrivateDocument` table in Supabase. ID files have no public URL and are served only by authenticated Django endpoints. The database storage migration is included in the code.
 
 The four existing GoRent ID files were copied into its private Supabase database table with the user's explicit approval and verified byte for byte. The local copies remain in `private_media/` and are not committed to Git. If more documents are uploaded through the local preview before production deployment, run `python manage.py migrate_private_documents` to check the pending count, then run it with `--execute` after confirming those documents may be transferred.
 
-Production listing is intentionally closed without an authorized ID verification provider. The previous local `demo_checked` status does not count as verified in production, and its cars are not shown to renters. Connecting a legitimate verification provider is required to unlock new public listings. Do not set `DEBUG=1` on Render to bypass this gate.
+An owner can submit a government, student, employee or other ID to unlock listing. The app checks file type and size, stores the file privately, and records `submitted`; it does not authenticate the document or claim the owner is verified. Existing local `demo_checked` records do not unlock production listing. Owners with that status should upload again on the live site.
 
 Keep `DATABASE_URL`, `CLOUDINARY_URL` and any provider secrets in Render environment variables, never GitHub or Vercel frontend settings. The Vercel build gets only the public Render origin.

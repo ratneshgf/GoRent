@@ -4,7 +4,7 @@
 
 For a split Render backend and Vercel frontend deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
-Django and Django REST Framework app with owner and renter accounts. Owners complete a local ID file check before listing cars; renters upload an ID with each rental request; owners review that private ID and accept or reject requests. Acceptance requires a pickup address, and the renter receives a Google Maps driving route.
+Django and Django REST Framework app with owner and renter accounts. Owners upload a private ID file before listing cars; this is a document submission, not authenticity verification. Renters upload an ID with each rental request; owners review that private ID and accept or reject requests. Acceptance requires a pickup address, and the renter receives a Google Maps driving route.
 
 ## Local preview
 
@@ -38,7 +38,7 @@ If migration reports a connection error, verify the new project's Session pooler
 
 ## How it works
 
-1. Register as a car owner. In the full-width Dashboard, use **Add a car** to save car details as a private draft in **My cars**, or list immediately after the owner ID check. Drafts are visible only to their owner and can be edited before listing. From **My cars**, click **List car** whenever you want the saved car to appear in renter Explore. The local ID file check is required to publish, but not to save a draft.
+1. Register as a car owner. In the full-width Dashboard, use **Add a car** to save car details as a private draft in **My cars**, or list immediately after uploading an ID. Drafts are visible only to their owner and can be edited before listing. From **My cars**, click **List car** whenever you want the saved car to appear in renter Explore. ID upload is required to publish, but not to save a draft. The app checks file format, not document authenticity.
 2. Register as a renter, find a car, choose **Days** or **Hours** on its booking page, choose an ID type, upload an ID and consent to privately share it with the owner, then click **Request this car**. Hourly rentals start at one hour; the hourly rate is the daily price divided by 24 and rounded up to the next rupee, and partial hours are billed as full hours. The owner must open the document before accepting; replacing an ID requires the owner to open the new file again. Older requests without an ID offer an Upload ID action in My trips. Owner and renter can exchange messages.
 3. The owner clicks **Accept & set pickup**, enters a precise address or shares the device location, and accepts. The renter sees the pickup address and **Open Google Maps route** in My trips. Google Maps opens driving directions from the renter's current location. No Google Maps API key is needed for this link.
 4. The owner may reject a request. A renter may cancel a pending request at any time; either party may cancel a confirmed booking **before pickup starts** by giving a reason. The app does not charge a cancellation fee or issue an automatic refund. Active rentals cannot be cancelled through this flow; the owner can mark a dispute instead.

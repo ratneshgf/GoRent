@@ -35,7 +35,7 @@ class UserSer(serializers.ModelSerializer):
     identity_can_list = serializers.SerializerMethodField()
     identity_local_demo = serializers.SerializerMethodField()
     def get_identity_can_list(self, user):
-        return user.identity_status == "verified" or (settings.OWNER_ID_LOCAL_DEMO and user.identity_status == "demo_checked")
+        return user.identity_status in ("verified", "submitted") or (settings.OWNER_ID_LOCAL_DEMO and user.identity_status == "demo_checked")
     def get_identity_local_demo(self, user): return settings.OWNER_ID_LOCAL_DEMO
     class Meta:
         model = User; fields = ["id", "email", "first_name", "role", "phone", "status", "company_name", "identity_type", "identity_status", "identity_can_list", "identity_local_demo"]
@@ -195,7 +195,8 @@ class BookingCreateSer(serializers.Serializer):
         if a["id_type"] == "aadhaar" and not a["masked_aadhaar"]:
             raise serializers.ValidationError("Upload only masked Aadhaar with the first eight digits hidden.")
         v = a["vehicle"]
-        if v.status != "published" or v.owner.status != "active" or (not settings.OWNER_ID_LOCAL_DEMO and v.owner.identity_status != "verified"):
+        allowed_statuses = ("verified", "submitted", "demo_checked") if settings.OWNER_ID_LOCAL_DEMO else ("verified", "submitted")
+        if v.status != "published" or v.owner.status != "active" or v.owner.identity_status not in allowed_statuses:
             raise serializers.ValidationError("This car is not available for booking.")
         if a["booking_type"] == "hourly":
             if not a.get("start_at") or not a.get("end_at"):

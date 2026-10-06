@@ -43,19 +43,17 @@ class MeView(generics.RetrieveUpdateAPIView):
 class OwnerIdentityView(APIView):
     def post(self, request):
         if request.user.role != "owner": raise PermissionDenied("Only owners can submit an identity document.")
-        if not settings.OWNER_ID_LOCAL_DEMO:
-            raise ValidationError("Government ID verification is not configured. Listing is unavailable until a verification provider is connected.")
         serializer = OwnerIdentitySer(data=request.data)
         serializer.is_valid(raise_exception=True)
         old_document = request.user.kyc_document
         request.user.kyc_document = serializer.validated_data["document"]
         request.user.identity_type = serializer.validated_data["document_type"]
-        request.user.identity_status = "demo_checked"
+        request.user.identity_status = "demo_checked" if settings.OWNER_ID_LOCAL_DEMO else "submitted"
         request.user.identity_submitted_at = timezone.now()
         request.user.save(update_fields=["kyc_document", "identity_type", "identity_status", "identity_submitted_at"])
         if old_document and old_document.name != request.user.kyc_document.name:
             old_document.delete(save=False)
-        rules.audit(request.user, "identity_demo_checked", "user", request.user.pk)
+        rules.audit(request.user, "identity_document_submitted", "user", request.user.pk)
         return Response(UserSer(request.user).data)
 
 class VehicleViewSet(viewsets.ModelViewSet):
@@ -70,8 +68,10 @@ class VehicleViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(owner=u)
             else:
                 qs = qs.filter(status="published", owner__status="active")
-                if not settings.OWNER_ID_LOCAL_DEMO:
-                    qs = qs.filter(owner__identity_status="verified")
+                allowed_statuses = ["verified", "submitted"]
+                if settings.OWNER_ID_LOCAL_DEMO:
+                    allowed_statuses.append("demo_checked")
+                qs = qs.filter(owner__identity_status__in=allowed_statuses)
             if p.get("q"):
                 term = p["q"].strip()
                 qs = qs.filter(Q(brand__icontains=term) | Q(name__icontains=term) | Q(city__icontains=term))

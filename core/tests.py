@@ -137,7 +137,7 @@ class MarketplaceFlowTests(TestCase):
         late = Booking.objects.create(vehicle=car, customer=renter, start=timezone.localdate()-timedelta(days=1), end=timezone.localdate()+timedelta(days=1), amount=1600, status="confirmed")
         self.assertEqual(self.client.post(f"/api/bookings/{late.pk}/transition", {"status":"cancelled", "reason":"Too late"}).status_code, 400)
 
-    def test_identity_upload_validation_and_production_gate(self):
+    def test_identity_upload_validation_and_production_listing(self):
         owner = User.objects.create_user(username="idowner@test.in", email="idowner@test.in", password="password123", role="owner")
         self.login(owner.email)
         bad = self.client.post("/api/owner/identity", {"document_type":"aadhaar", "document":SimpleUploadedFile("id.pdf", b"%PDF-1.4 test", content_type="application/pdf"), "consent":"true"}, format="multipart")
@@ -151,6 +151,15 @@ class MarketplaceFlowTests(TestCase):
             details = {"brand":"Tata", "name":"Punch", "category":"SUV", "fuel":"Petrol", "transmission":"Manual", "seats":5, "year":2024, "price_per_day":1600, "city":"Gwalior"}
             self.assertEqual(self.client.post("/api/vehicles", details).status_code, 403)
             self.assertEqual(self.client.post("/api/owner/identity", {"document_type":"pan"}).status_code, 400)
+            submitted = self.client.post("/api/owner/identity", {"document_type":"student_id", "document":SimpleUploadedFile("student.pdf", b"%PDF-1.4 student ID", content_type="application/pdf"), "consent":"true"}, format="multipart")
+            self.assertEqual(submitted.status_code, 200, submitted.data)
+            self.assertEqual(submitted.data["identity_status"], "submitted")
+            self.assertTrue(submitted.data["identity_can_list"])
+            self.assertNotIn("kyc_document", submitted.data)
+            listed = self.client.post("/api/vehicles", details)
+            self.assertEqual(listed.status_code, 201, listed.data)
+            self.client.credentials()
+            self.assertEqual([car["id"] for car in self.client.get("/api/vehicles").data], [listed.data["id"]])
 
     def test_employee_id_unlocks_owner_and_old_request_needs_renter_id(self):
         owner = User.objects.create_user(username="employee@test.in", email="employee@test.in", password="password123", role="owner")
